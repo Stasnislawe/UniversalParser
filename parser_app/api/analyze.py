@@ -1,15 +1,23 @@
 import asyncio
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from urllib.parse import urlparse
+
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends
 from core.schemas import (FetchRequest, TaskResponse, TaskStatusResponse, PageData, CandidatesResponse, Candidate,
                           SelectContainerRequest, FieldsResponse, Field)
 from services.fetcher import fetch
 from services.analyzer.field_extractor import extract_fields_from_blocks
 from services.analyzer.structure import find_repeating_blocks
 from core.redis_client import get_redis
+from core.database import get_db
+from models.config import ParserConfig
 from lxml import html
 import uuid
 import json
 import logging
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 router = APIRouter(prefix="/analyze", tags=["analyze"])
 logger = logging.getLogger(__name__)
@@ -36,12 +44,25 @@ async def process_analysis(task_id: str, url: str, use_js: bool):
 
 
 @router.post("/start", response_model=TaskResponse)
-async def start_analysis(req: FetchRequest, background_tasks: BackgroundTasks):
+async def start_analysis(
+    req: FetchRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
+    domain = urlparse(str(req.url)).netloc
+    # Проверяем существующие конфигурации
+    stmt = select(ParserConfig).where(ParserConfig.domain == domain)
+    result = await db.execute(stmt)
+    existing = result.scalars().first()
+    if existing:
+        logger.info(f"Found existing config for domain {domain}: {existing.id}")
+
     task_id = str(uuid.uuid4())
     background_tasks.add_task(process_analysis, task_id, str(req.url), req.use_js)
     redis = await get_redis()
     await redis.setex(f"task:{task_id}:status", 3600, "PENDING")
     return TaskResponse(task_id=task_id)
+
 
 
 @router.get("/status/{task_id}", response_model=TaskStatusResponse)
