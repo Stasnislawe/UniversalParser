@@ -88,3 +88,24 @@ class ConfigRead(BaseModel):
 
     class Config:
         orm_mode = True
+
+# Запрос на запуск сбора
+class ScrapeStartRequest(BaseModel):
+    config_id: Optional[int] = None          # можно использовать сохранённую конфигурацию
+    config: Optional[ConfigData] = None      # или передать конфигурацию напрямую
+    start_url: HttpUrl
+    max_pages: Optional[int] = None          # ограничение по страницам
+
+# Статус задачи сбора
+class ScrapeStatusResponse(BaseModel):
+    task_id: str
+    status: str  # "PENDING", "PROCESSING", "SUCCESS", "FAILURE"
+    pages_processed: Optional[int] = None
+    items_count: Optional[int] = None
+    error: Optional[str] = None
+
+# Результат сбора (список записей)
+class ScrapeResult(BaseModel):
+    task_id: str
+    data: List[dict]
+    total_items: int

@@ -5,7 +5,7 @@ if sys.platform == "win32":
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from core.redis_client import close_redis
-from api import analyze, configs
+from api import analyze, configs, scrape
 from core.database import engine, Base
 import logging
 
@@ -32,3 +32,4 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Parser App", lifespan=lifespan)
 app.include_router(analyze.router, prefix="/api")
 app.include_router(configs.router, prefix="/api")
+app.include_router(scrape.router, prefix="/api")
