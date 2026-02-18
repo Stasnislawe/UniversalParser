@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from core.redis_client import get_redis
 from core.schemas import ConfigData
-from services.scraper.scraper import SyncScraper
+from services.scraper.sync_scraper import SyncScraper
 from models.config import ParserConfig
 from core.database import AsyncSessionLocal
 
@@ -27,17 +27,14 @@ async def run_scrape_task(task_id: str, config_id: int, start_url: str, max_page
         await redis.setex(f"scrape:{task_id}:pages", 3600, "0")
         await redis.setex(f"scrape:{task_id}:items", 3600, "0")
 
-        # Запускаем синхронный скрапер в отдельном потоке
         scraper = SyncScraper(config_data, start_url, max_pages)
-        results = await asyncio.to_thread(scraper.run)
+        results = await asyncio.to_thread(scraper.run)  # запуск в потоке
 
-        # Сохраняем результаты
         await redis.setex(f"scrape:{task_id}:data", 3600, json.dumps(results))
         await redis.setex(f"scrape:{task_id}:pages", 3600, str(scraper.pages_processed))
         await redis.setex(f"scrape:{task_id}:items", 3600, str(len(results)))
         await redis.setex(f"scrape:{task_id}:status", 3600, "SUCCESS")
         logger.info(f"Scrape task {task_id} completed, {len(results)} items")
-
     except Exception as e:
         logger.exception(f"Scrape task {task_id} failed")
         await redis.setex(f"scrape:{task_id}:status", 3600, "FAILURE")

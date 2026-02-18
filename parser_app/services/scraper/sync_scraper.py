@@ -1,25 +1,18 @@
-import time
-import logging
-from typing import List, Dict, Any, Optional
-from urllib.parse import urljoin
-
 from playwright.sync_api import sync_playwright
-from lxml import html as lxml_html
-
-from core.schemas import ConfigData, FieldSchema, PaginationSchema
-
-logger = logging.getLogger(__name__)
+from lxml import html
+from urllib.parse import urljoin
+from typing import List, Dict, Any, Optional
+from core.schemas import ConfigData
 
 class SyncScraper:
     def __init__(self, config: ConfigData, start_url: str, max_pages: Optional[int] = None):
         self.config = config
         self.start_url = start_url
         self.max_pages = max_pages
-        self.results: List[Dict[str, Any]] = []
+        self.results = []
         self.pages_processed = 0
 
     def run(self) -> List[Dict[str, Any]]:
-        """Синхронный метод для сбора данных."""
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             page = browser.new_page()
@@ -42,10 +35,8 @@ class SyncScraper:
 
     def _extract_page_data(self, page):
         content = page.content()
-        tree = lxml_html.fromstring(content)
+        tree = html.fromstring(content)
         containers = tree.cssselect(self.config.container_selector)
-        logger.info(f"Found {len(containers)} containers on page {self.pages_processed+1}")
-
         for container in containers:
             item = {}
             for field in self.config.fields:
@@ -77,7 +68,6 @@ class SyncScraper:
             button = page.query_selector(pagination.selector)
             return button is not None and button.is_visible()
         elif pagination.type == 'scroll':
-            # Всегда пытаемся скроллить, логика остановки внутри _perform_pagination
             return True
         elif pagination.type == 'url_pattern':
             return True
@@ -89,12 +79,12 @@ class SyncScraper:
             return
         if pagination.type == 'next_button':
             page.click(pagination.selector)
-            page.wait_for_load_state("networkidle")
         elif pagination.type == 'scroll':
             last_height = page.evaluate("document.body.scrollHeight")
             while True:
                 page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                time.sleep(2)  # синхронная задержка
+                import time
+                time.sleep(2)
                 new_height = page.evaluate("document.body.scrollHeight")
                 if new_height == last_height:
                     break

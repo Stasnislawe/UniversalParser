@@ -3,7 +3,9 @@ import json
 import uuid
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.responses import FileResponse
 
+from services.exporter.exporter import Exporter
 from core.database import get_db
 from core.redis_client import get_redis
 from core.schemas import ScrapeStartRequest, ScrapeStatusResponse
@@ -52,3 +54,33 @@ async def scrape_result(task_id: str):
         raise HTTPException(404, "Result not ready or not found")
     data = json.loads(data_json)
     return {"task_id": task_id, "data": data, "total_items": len(data)}
+
+@router.get("/export/{task_id}")
+async def export_results(task_id: str, format: str = "json"):
+    """
+    Экспортирует результаты задачи сбора в JSON или Excel.
+    Параметр format: 'json' (по умолчанию) или 'excel'.
+    """
+    redis = await get_redis()
+    data_json = await redis.get(f"scrape:{task_id}:data")
+    if not data_json:
+        raise HTTPException(404, "Данные не найдены или задача ещё не завершена")
+
+    data = json.loads(data_json)
+
+    if format.lower() == "json":
+        file_path = Exporter.to_json(data)
+        media_type = "application/json"
+        download_filename = f"results_{task_id}.json"
+    elif format.lower() == "excel":
+        file_path = Exporter.to_excel(data)
+        media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        download_filename = f"results_{task_id}.xlsx"
+    else:
+        raise HTTPException(400, "Неподдерживаемый формат. Используйте 'json' или 'excel'.")
+
+    return FileResponse(
+        path=file_path,
+        media_type=media_type,
+        filename=download_filename
+    )

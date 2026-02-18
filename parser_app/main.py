@@ -1,7 +1,9 @@
+import asyncio
 import sys
+# Устанавливаем политику для Windows до создания цикла
 if sys.platform == "win32":
-    import asyncio
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from core.redis_client import close_redis
