@@ -9,6 +9,13 @@ from core.redis_client import close_redis
 from api import analyze
 import logging
 
+def handle_exception(loop, context):
+    msg = context.get("exception", context["message"])
+    logging.error(f"Caught exception: {msg}")
+
+loop = asyncio.get_event_loop()
+loop.set_exception_handler(handle_exception)
+
 logging.basicConfig(level=logging.INFO)
 
 @asynccontextmanager
