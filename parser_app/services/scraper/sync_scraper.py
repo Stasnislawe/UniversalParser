@@ -3,6 +3,7 @@ from lxml import html
 from urllib.parse import urljoin
 from typing import List, Dict, Any, Optional
 from core.schemas import ConfigData
+from .exceptions import NoContainerFound, NoFieldsExtracted
 
 class SyncScraper:
     def __init__(self, config: ConfigData, start_url: str, max_pages: Optional[int] = None):
@@ -37,6 +38,11 @@ class SyncScraper:
         content = page.content()
         tree = html.fromstring(content)
         containers = tree.cssselect(self.config.container_selector)
+        if not containers:
+            raise NoContainerFound(
+                f"Container selector '{self.config.container_selector}' not found on page {self.pages_processed + 1}"
+            )
+        page_items = []
         for container in containers:
             item = {}
             for field in self.config.fields:
@@ -59,6 +65,10 @@ class SyncScraper:
                     value = None
                 item[field.name] = value
             self.results.append(item)
+
+        if not page_items:
+            raise NoFieldsExtracted("No items extracted from containers")
+        self.results.extend(page_items)
 
     def _has_next_page(self, page) -> bool:
         pagination = self.config.pagination

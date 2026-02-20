@@ -84,3 +84,9 @@ async def export_results(task_id: str, format: str = "json"):
         media_type=media_type,
         filename=download_filename
     )
+
+@router.get("/needs-update/{task_id}")
+async def scrape_needs_update(task_id: str):
+    redis = await get_redis()
+    update_required = await redis.get(f"scrape:{task_id}:update_required")
+    return {"task_id": task_id, "update_required": update_required == "true"}
