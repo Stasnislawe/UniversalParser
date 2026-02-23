@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from core.redis_client import close_redis
 from api import analyze, configs, scrape
 from core.database import engine, Base
+from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 def handle_exception(loop, context):
@@ -32,6 +33,15 @@ async def lifespan(app: FastAPI):
     logging.info("Redis closed, DB engine disposed")
 
 app = FastAPI(title="Parser App", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # адрес фронтенда
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(analyze.router, prefix="/api")
 app.include_router(configs.router, prefix="/api")
 app.include_router(scrape.router, prefix="/api")
