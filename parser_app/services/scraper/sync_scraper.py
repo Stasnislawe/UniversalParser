@@ -64,7 +64,7 @@ class SyncScraper:
                 else:
                     value = None
                 item[field.name] = value
-            self.results.append(item)
+            page_items.append(item)
 
         if not page_items:
             raise NoFieldsExtracted("No items extracted from containers")
