@@ -63,7 +63,7 @@ GRANT ALL PRIVILEGES ON DATABASE parser_db TO parser_user;
 ```
 #### Установите Redis (стандартный порт 6379).
 
-3. Бэкенд
+### 3. Бэкенд
 #### Перейдите в папку parser_app:
 
 ```bash
